@@ -19,10 +19,15 @@
 
 
 #define macro CONSTRUCTOR() = takes (0) returns (0) {
-    0x00 calldataload
-    [ENTRANCE_FEE_LOCATION]
+    0x20        // [size]
+    0x20        // [size, size]
+    codesize    // [codesize, size, size]
+    sub         // [offset, size]
+    0x00        // [mem, offset, size]
+    codecopy    // [] -> copies data to memory
+    0x00 mload  // [entrance_fee]
+    [ENTRANCE_FEE_LOCATION] // [location, entrance_fee]
     sstore
-
 }
 
 #define macro MAIN() = takes (0) returns (0) {

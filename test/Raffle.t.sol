@@ -12,11 +12,17 @@ interface Raffle {
 
 contract RaffleTest is Test {
     Raffle public raffle;
-    uint256 raffleEntranceFee;
+    uint256 public constant raffleEntranceFee = 1 ether;
 
     /// @dev Setup the testing environment.
     function setUp() public {
-        raffle = Raffle(HuffDeployer.deploy_with_args("Raffle", abi.encode(raffleEntranceFee)));
+        console.logBytes(bytes.concat(abi.encode(raffleEntranceFee)));
+        raffle = Raffle(
+            HuffDeployer
+                .config()
+                .with_args(bytes.concat(abi.encode(raffleEntranceFee)))
+                .deploy("Raffle")
+        );
     }
 
     function testGetEntranceFee() public {
