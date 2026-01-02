@@ -1,0 +1,8 @@
+{
+  "lib/forge-std": {
+    "rev": "cb69e9c07fbd002819c8c6c8db3caeab76b90d6b"
+  },
+  "lib/foundry-huff": {
+    "rev": "eb9ea316389e8bd580f92908b8454399401d0316"
+  }
+}
