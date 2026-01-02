@@ -1,8 +1,48 @@
 /* Functions */
+#define function enterRaffle() payable returns ()
 #define function getEntranceFee() view returns (uint256)
+#define function getPlayer(uint256) view returns (address)
+
+/* Errors */
+#define error Raffle_NotEnoughEthSent()
+
+/* Events */
+#define event RaffleEnter(address indexed player)
 
 /* Storage Slots */
 #define constant ENTRANCE_FEE_LOCATION = FREE_STORAGE_POINTER()
+#define constant PLAYERS_SLOT = FREE_STORAGE_POINTER()
+
+// Get length
+#define macro ARRAY_LENGTH() = takes(0) returns(1) {
+    [PLAYERS_SLOT] sload   // [length]
+}
+
+// Get element at index
+#define macro ARRAY_GET() = takes(1) returns(1) {
+    0x20 mul  // [array_offset] index * 32 bytes
+    [PLAYERS_SLOT]         // [array_offset, array_slot]
+    0x00 mstore          // [array_offset] (store slot ptr in memory)
+    0x20 0x00 sha3       // [array_offset, data_start] (keccak256 of slot)
+    add                  // [element_slot]
+    sload                // [value]
+}
+
+// Push element
+#define macro ARRAY_PUSH() = takes(1) returns(0) {
+    [PLAYERS_SLOT] sload   // [value, length]
+    dup1                 // [value, length, length]
+    0x01 add             // [value, length, new_length]
+    [PLAYERS_SLOT] sstore  // [value, length] (update length)
+    
+    [PLAYERS_SLOT]         // [value, length, array_slot]
+    0x00 mstore          // [value, length]
+    0x20 0x00 sha3       // [value, length, data_start]
+    swap1                // [value, data_start, length]
+    0x20 mul             // [value, data_start, offset]
+    add                  // [value, new_element_slot]
+    sstore               // []
+}
 
 #define macro GET_ENTRANCE_FEE() = takes (0) returns (0) {
     // Load value from storage.
@@ -15,6 +55,29 @@
     // Return value
     // len ptr
     0x20 0x00 return
+}
+
+#define macro ENTER_RAFFLE() = takes (0) returns (0) {
+    // Check if msg.value >= entrance fee
+    callvalue                           // Stack: [msg.value]
+    [ENTRANCE_FEE_LOCATION] sload       // Stack: [entranceFee, msg.value]
+    lt                                  // Stack: [msg.value < entranceFee]
+    error jumpi                         // Jump to error if true
+    
+    caller
+    ARRAY_PUSH()
+
+    caller
+    __EVENT_HASH(RaffleEnter)
+    0x00 0x00
+    log2
+    
+    stop
+    
+    error:
+        __ERROR(Raffle_NotEnoughEthSent)  // Load error selector
+        0x00 mstore                       // Store at memory position 0
+        0x04 0x00 revert                  // Revert with 4 bytes of error data
 }
 
 
@@ -33,10 +96,20 @@
 #define macro MAIN() = takes (0) returns (0) {
     // Identify which function is being called.
     0x00 calldataload 0xE0 shr // stack: [selector]
-    __FUNC_SIG(getEntranceFee) eq getEntranceFee jumpi
+    dup1 __FUNC_SIG(getEntranceFee) eq getEntranceFee jumpi // stack [selector]
+    dup1 __FUNC_SIG(enterRaffle) eq enterRaffle jumpi 
+    dup1 __FUNC_SIG(getPlayer) eq getPlayer jumpi
 
+    pop              // Clean up the selector
     0x00 0x00 revert
 
     getEntranceFee:
         GET_ENTRANCE_FEE()
+    enterRaffle:
+        ENTER_RAFFLE()
+    getPlayer:
+        0x04 calldataload // stack: [index]
+        ARRAY_GET() // stack: [element]
+        0x00 mstore          // []
+        0x20 0x00 return
 }
