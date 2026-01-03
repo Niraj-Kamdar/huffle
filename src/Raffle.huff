@@ -32,18 +32,18 @@
 
 // Push element
 #define macro PLAYERS_ARRAY_PUSH() = takes(1) returns(0) {
-    [PLAYERS_SLOT] sload    // [value, length]
-    dup1                   // [value, length, length]
-    0x01 add               // [value, length, new_length]
-    [PLAYERS_SLOT] sstore  // [value, length] (update length)
+    [PLAYERS_SLOT] sload    // [length, caller]
+    dup1                    // [length, length, caller]
+    0x01 add                // [new_length, length, caller]
+    [PLAYERS_SLOT] sstore   // [length, caller] (update length)
     
-    [PLAYERS_SLOT]         // [value, length, array_slot]
-    0x00 mstore            // [value, length]
-    0x20 0x00 sha3       // [value, length, data_start]
-    swap1                // [value, data_start, length]
-    0x20 mul             // [value, data_start, offset]
-    add                  // [value, new_element_slot]
-    sstore               // []
+    [PLAYERS_SLOT]          // [array_slot, length, caller]
+    0x00 mstore            // [length, caller]
+    0x20 0x00 sha3         // [data_start, length, caller] keccak(player_slot) -> data_slot
+    swap1                  // [length, data_start, caller]
+    0x20 mul               // [offset, data_start, caller] offset = length * 32
+    add                    // [new_element_slot, caller]
+    sstore                 // []
 }
 
 #define macro GET_ENTRANCE_FEE() = takes (0) returns (0) {
@@ -75,7 +75,7 @@
 #define macro ENTER_RAFFLE() = takes (0) returns (0) {
     // Check if msg.value >= entrance fee
     callvalue                           // Stack: [msg.value]
-    [ENTRANCE_FEE_SLOT] sload       // Stack: [entranceFee, msg.value]
+    [ENTRANCE_FEE_SLOT] sload          // Stack: [entranceFee, msg.value]
     lt                                  // Stack: [msg.value < entranceFee]
     error jumpi                         // Jump to error if true
     
