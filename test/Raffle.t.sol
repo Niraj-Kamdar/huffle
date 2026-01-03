@@ -10,6 +10,7 @@ interface Raffle {
     function enterRaffle() external payable;
     function getPlayer(uint256) external view returns (address);
     function getInterval() external view returns (uint256);
+    function getLastTimestamp() external view returns (uint256);
 }
 
 contract RaffleTest is Test {
@@ -39,13 +40,19 @@ contract RaffleTest is Test {
         assertEq(
             actualInterval,
             interval,
-            "Entrance fee is not same as the one we set"
+            "Interval is not same as the one we set"
         );
     }
 
     function testGetEntranceFee() public {
         uint256 actualEntranceFee = raffle.getEntranceFee();
         assertEq(actualEntranceFee, raffleEntranceFee, "Entrance fee is not same as the one we set");
+    }
+
+    function testGetLastTimestamp() public {
+        uint256 lastTimestamp = raffle.getLastTimestamp();
+        assertNotEq(lastTimestamp, 0, "Timestamp shouldn't be zero");
+        assertLe(lastTimestamp, block.timestamp, "Timestamp should be lower than the current timestamp");
     }
 
     function testRaffleRecordsPlayerWhenTheyEnter() public {

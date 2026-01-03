@@ -3,6 +3,7 @@
 #define function getEntranceFee() view returns (uint256)
 #define function getPlayer(uint256) view returns (address)
 #define function getInterval() view returns (uint256)
+#define function getLastTimestamp() view returns (uint256)
 
 /* Errors */
 #define error Raffle_NotEnoughEthSent()
@@ -14,6 +15,7 @@
 #define constant ENTRANCE_FEE_SLOT = FREE_STORAGE_POINTER()
 #define constant PLAYERS_SLOT = FREE_STORAGE_POINTER()
 #define constant INTERVAL_SLOT = FREE_STORAGE_POINTER()
+#define constant LAST_TIMESTAMP_SLOT = FREE_STORAGE_POINTER()
 
 // Get length
 #define macro PLAYERS_ARRAY_LENGTH() = takes(0) returns(1) {
@@ -62,6 +64,19 @@
 #define macro GET_INTERVAL() = takes (0) returns (0) {
     // Load value from storage.
     [INTERVAL_SLOT]      // [ptr]
+    sload                // [value]
+
+    // Store value in memory.
+    0x00 mstore
+
+    // Return value
+    // len ptr
+    0x20 0x00 return
+}
+
+#define macro GET_LAST_TIMESTAMP() = takes (0) returns (0) {
+    // Load value from storage.
+    [LAST_TIMESTAMP_SLOT]      // [ptr]
     sload                // [value]
 
     // Store value in memory.
@@ -122,6 +137,10 @@
     0x00 mload      // [interval]
     [INTERVAL_SLOT] // [location, interval]
     sstore
+
+    timestamp // [timestamp]
+    [LAST_TIMESTAMP_SLOT] // [location, timestamp]
+    sstore
 }
 
 #define macro MAIN() = takes (0) returns (0) {
@@ -130,7 +149,8 @@
     dup1 __FUNC_SIG(getEntranceFee) eq getEntranceFee jumpi // stack [selector]
     dup1 __FUNC_SIG(enterRaffle) eq enterRaffle jumpi 
     dup1 __FUNC_SIG(getPlayer) eq getPlayer jumpi
-    __FUNC_SIG(getInterval) eq getInterval jumpi
+    dup1 __FUNC_SIG(getInterval) eq getInterval jumpi
+    __FUNC_SIG(getLastTimestamp) eq getLastTimestamp jumpi
 
     0x00 0x00 revert
 
@@ -145,4 +165,6 @@
         0x20 0x00 return
     getInterval:
         GET_INTERVAL()
+    getLastTimestamp:
+        GET_LAST_TIMESTAMP()
 }
