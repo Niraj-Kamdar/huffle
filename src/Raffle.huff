@@ -2,6 +2,7 @@
 #define function enterRaffle() payable returns ()
 #define function getEntranceFee() view returns (uint256)
 #define function getPlayer(uint256) view returns (address)
+#define function getInterval() view returns (uint256)
 
 /* Errors */
 #define error Raffle_NotEnoughEthSent()
@@ -10,33 +11,34 @@
 #define event RaffleEnter(address indexed player)
 
 /* Storage Slots */
-#define constant ENTRANCE_FEE_LOCATION = FREE_STORAGE_POINTER()
+#define constant ENTRANCE_FEE_SLOT = FREE_STORAGE_POINTER()
 #define constant PLAYERS_SLOT = FREE_STORAGE_POINTER()
+#define constant INTERVAL_SLOT = FREE_STORAGE_POINTER()
 
 // Get length
-#define macro ARRAY_LENGTH() = takes(0) returns(1) {
+#define macro PLAYERS_ARRAY_LENGTH() = takes(0) returns(1) {
     [PLAYERS_SLOT] sload   // [length]
 }
 
 // Get element at index
-#define macro ARRAY_GET() = takes(1) returns(1) {
-    0x20 mul  // [array_offset] index * 32 bytes
-    [PLAYERS_SLOT]         // [array_offset, array_slot]
+#define macro PLAYERS_ARRAY_GET() = takes(1) returns(1) {
+    0x20 mul             // [array_offset] index * 32 bytes
+    [PLAYERS_SLOT]       // [array_slot, array_offset]
     0x00 mstore          // [array_offset] (store slot ptr in memory)
-    0x20 0x00 sha3       // [array_offset, data_start] (keccak256 of slot)
+    0x20 0x00 sha3       // [data_start, array_offset] (keccak256 of slot)
     add                  // [element_slot]
     sload                // [value]
 }
 
 // Push element
-#define macro ARRAY_PUSH() = takes(1) returns(0) {
-    [PLAYERS_SLOT] sload   // [value, length]
-    dup1                 // [value, length, length]
-    0x01 add             // [value, length, new_length]
+#define macro PLAYERS_ARRAY_PUSH() = takes(1) returns(0) {
+    [PLAYERS_SLOT] sload    // [value, length]
+    dup1                   // [value, length, length]
+    0x01 add               // [value, length, new_length]
     [PLAYERS_SLOT] sstore  // [value, length] (update length)
     
     [PLAYERS_SLOT]         // [value, length, array_slot]
-    0x00 mstore          // [value, length]
+    0x00 mstore            // [value, length]
     0x20 0x00 sha3       // [value, length, data_start]
     swap1                // [value, data_start, length]
     0x20 mul             // [value, data_start, offset]
@@ -46,7 +48,20 @@
 
 #define macro GET_ENTRANCE_FEE() = takes (0) returns (0) {
     // Load value from storage.
-    [ENTRANCE_FEE_LOCATION]   // [ptr]
+    [ENTRANCE_FEE_SLOT]   // [ptr]
+    sload                // [value]
+
+    // Store value in memory.
+    0x00 mstore
+
+    // Return value
+    // len ptr
+    0x20 0x00 return
+}
+
+#define macro GET_INTERVAL() = takes (0) returns (0) {
+    // Load value from storage.
+    [INTERVAL_SLOT]      // [ptr]
     sload                // [value]
 
     // Store value in memory.
@@ -60,12 +75,12 @@
 #define macro ENTER_RAFFLE() = takes (0) returns (0) {
     // Check if msg.value >= entrance fee
     callvalue                           // Stack: [msg.value]
-    [ENTRANCE_FEE_LOCATION] sload       // Stack: [entranceFee, msg.value]
+    [ENTRANCE_FEE_SLOT] sload       // Stack: [entranceFee, msg.value]
     lt                                  // Stack: [msg.value < entranceFee]
     error jumpi                         // Jump to error if true
     
     caller
-    ARRAY_PUSH()
+    PLAYERS_ARRAY_PUSH()
 
     caller
     __EVENT_HASH(RaffleEnter)
@@ -82,14 +97,30 @@
 
 
 #define macro CONSTRUCTOR() = takes (0) returns (0) {
+    // Copy the first argument (entrance_fee) into memory
     0x20        // [size]
-    0x20        // [size, size]
-    codesize    // [codesize, size, size]
+    0x40        // [totalSize, size]
+    codesize    // [codesize, totalSize, size]
     sub         // [offset, size]
     0x00        // [mem, offset, size]
     codecopy    // [] -> copies data to memory
+
+    // Store the first argument (entrance_fee) in storage
     0x00 mload  // [entrance_fee]
-    [ENTRANCE_FEE_LOCATION] // [location, entrance_fee]
+    [ENTRANCE_FEE_SLOT] // [location, entrance_fee]
+    sstore
+
+    // Copy the second argument (interval) into memory
+    0x20        // [size]
+    0x20        // [remainingSize, size]
+    codesize    // [codesize, remainingSize, size]
+    sub         // [offset, size]
+    0x00        // [mem, offset, size]
+    codecopy    // [] -> copies data to memory
+
+    // Store the second argument (interval) in storage
+    0x00 mload      // [interval]
+    [INTERVAL_SLOT] // [location, interval]
     sstore
 }
 
@@ -99,8 +130,8 @@
     dup1 __FUNC_SIG(getEntranceFee) eq getEntranceFee jumpi // stack [selector]
     dup1 __FUNC_SIG(enterRaffle) eq enterRaffle jumpi 
     dup1 __FUNC_SIG(getPlayer) eq getPlayer jumpi
+    __FUNC_SIG(getInterval) eq getInterval jumpi
 
-    pop              // Clean up the selector
     0x00 0x00 revert
 
     getEntranceFee:
@@ -109,7 +140,9 @@
         ENTER_RAFFLE()
     getPlayer:
         0x04 calldataload // stack: [index]
-        ARRAY_GET() // stack: [element]
+        PLAYERS_ARRAY_GET() // stack: [element]
         0x00 mstore          // []
         0x20 0x00 return
+    getInterval:
+        GET_INTERVAL()
 }

@@ -9,6 +9,7 @@ interface Raffle {
     function getEntranceFee() external view returns (uint256);
     function enterRaffle() external payable;
     function getPlayer(uint256) external view returns (address);
+    function getInterval() external view returns (uint256);
 }
 
 contract RaffleTest is Test {
@@ -17,7 +18,8 @@ contract RaffleTest is Test {
 
     Raffle public raffle;
     uint256 public constant raffleEntranceFee = 1 ether;
-    
+    uint256 public constant interval = 30;
+
     address public PLAYER = makeAddr("player");
     uint256 public constant STARTING_USER_BALANCE = 10 ether;
 
@@ -26,10 +28,19 @@ contract RaffleTest is Test {
         raffle = Raffle(
             HuffDeployer
                 .config()
-                .with_args(bytes.concat(abi.encode(raffleEntranceFee)))
+                .with_args(bytes.concat(abi.encode(raffleEntranceFee, interval)))
                 .deploy("Raffle")
         );
         vm.deal(PLAYER, STARTING_USER_BALANCE);
+    }
+
+    function testInterval() public {
+        uint256 actualInterval = raffle.getInterval();
+        assertEq(
+            actualInterval,
+            interval,
+            "Entrance fee is not same as the one we set"
+        );
     }
 
     function testGetEntranceFee() public {
