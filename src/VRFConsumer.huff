@@ -19,7 +19,6 @@
 #define constant EXTRA_BYTES_SELECTOR = 0x92fd1338
 
 /* storage slots */
-#define constant VALUE_LOCATION = FREE_STORAGE_POINTER()
 #define constant LAST_REQUEST_ID = FREE_STORAGE_POINTER()
 #define constant RESULTS = FREE_STORAGE_POINTER() // Mapping (request => result) (uint256 => uint256)
 
@@ -89,23 +88,45 @@
 
     // 'success' is now on top of the stack (0 for failure, 1 for success)
     // TODO: use iszero and single jump
-    dup1 0x01 eq success jumpi
-    0x00 eq failure jumpi
+    iszero failure jumpi
 
-    success:
-        0x00 mload // [load requestId]
-        dup1
-        [LAST_REQUEST_ID]
-        sstore
+    0x00 mload // [load requestId]
+    __EVENT_HASH(VRFRequested)
+    0x00 0x00
+    log2
 
-        __EVENT_HASH(VRFRequested)
-        0x00 0x00
-        log2
+    stop
 
-        stop
     failure:
         0x0 0x0 revert // [offset, size]
 }
+
+#define macro FULFILL_RANDOM_WORDS() = takes(0) returns (0) {
+    caller
+    [COORDINATOR]
+    eq
+    iszero error jumpi
+
+    // selector (0x04) + reqId (0x20) + array offset(0x20) + array length (0x20) + array data (0x20) (one word)
+
+    // Load value first
+    0x64 calldataload // Note: unlike solidity we already know calldata layout and selectively load needed data
+
+    0x4 calldataload // [reqId]
+    dup1
+    [LAST_REQUEST_ID]
+    sstore
+
+    // Stack: [[LAST_REQUEST_ID], random_word]
+    // Note: LAST_REQUEST_ID is keccak256 and collision chance are astronomically low so this would be safe
+    // Think carefully before doing this Ex: two different mapping with same key causes collision
+    sstore
+
+    error:
+        0x0 0x0 revert // TODO: add custom error
+}
+
+
 
 #define macro MAIN() = takes (0) returns (0) {
     // Identify which function is being called.
@@ -118,7 +139,6 @@
     request:
         REQUEST_RANDOM()
     fulfill:
-        // TODO: implement this
-        0x00 0x00 revert
+        FULFILL_RANDOM_WORDS()
 
 }
