@@ -10,10 +10,10 @@
 /* constants */
 #define constant COORDINATOR = 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
 #define constant KEY_HASH = 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
-#define constant SUB_ID = 93887930613551807707246171713699766519606036818737822122413811505768793743754
+#define constant SUB_ID = 0xcf92af81122d318b5046c261b0f3dec930e34ca12918d554f577cff6fcb5a18a
 #define constant REQUEST_CONFIRMATIONS = 0x03
-#define constant CALLBACK_GAS_LIMIT = 100000
-#define constant RANDOM_NUM_WORDS = 1
+#define constant CALLBACK_GAS_LIMIT = 0x186a0
+#define constant RANDOM_NUM_WORDS = 0x01
 
 // selector: requestRandomWords((bytes32,uint256,uint16,uint32,uint32,bytes))
 #define constant REQUEST_RANDOM_WORDS_SELECTOR = 0x9b1c385e
@@ -25,8 +25,8 @@
 
 // Why we encode like this? it's because solidity expect it like that.
 // If it's upto huff we would be packing more efficiently
-#define function REQUEST_RANDOM() = takes (0) returns (0) {
-    [REQUEST_RANDOM_WORDS_SELECTOR] // [REQUEST_RANDOM_WORDS_SELECTOR]
+#define macro REQUEST_RANDOM() = takes (0) returns (0) {
+    [REQUEST_RANDOM_WORDS_SELECTOR] 0xe0 shl // [REQUEST_RANDOM_WORDS_SELECTOR]
     0x0                             // [0x0, REQUEST_RANDOM_WORDS_SELECTOR]
     mstore                          // []
 
@@ -62,7 +62,7 @@
     0xe4  //
     mstore
 
-    [EXTRA_BYTES_SELECTOR] // extra bytes data followed by bool false
+    [EXTRA_BYTES_SELECTOR] 0xe0 shl // extra bytes data followed by bool false
     0x104
     mstore
 
@@ -73,12 +73,12 @@
     HANDLE_COORDINATOR_CALL()
 }
 
-#define function HANDLE_COORDINATOR_CALL() = takes (0) returns (0) {
+#define macro HANDLE_COORDINATOR_CALL() = takes (0) returns (0) {
     // 1. Prepare stack for call(g, a, v, in, insize, out, outsize)
     0x20                // [retSize]
     0x00                // [retOffset] (return data ptr in memory)
     0x144               // [argsSize]
-    0x00 mload          // [argsOffset] (args ptr in memory)
+    0x00                // [argsOffset] (args ptr in memory)
     0x00                // [value]
     [COORDINATOR]       // [address]
     gas                 // [gas]
@@ -91,10 +91,9 @@
     // TODO: use iszero and single jump
     iszero failure jumpi
 
-    0x00 mload // [load requestId]
+    0x20 0x00
     __EVENT_HASH(VRFRequested)
-    0x00 0x00
-    log2
+    log1
 
     stop
 
@@ -102,7 +101,7 @@
         0x0 0x0 revert // [offset, size]
 }
 
-#define function FULFILL_RANDOM_WORDS() = takes(0) returns (0) {
+#define macro FULFILL_RANDOM_WORDS() = takes(0) returns (0) {
     caller
     [COORDINATOR]
     eq
@@ -122,19 +121,20 @@
     // Note: LAST_REQUEST_ID is keccak256 and collision chance are astronomically low so this would be safe
     // Think carefully before doing this Ex: two different mapping with same key causes collision
     sstore
+    stop
 
     error:
         0x0 0x0 revert // TODO: add custom error
 }
 
-#define function GET_LAST_REQUEST_ID() = takes (0) returns (0) {
+#define macro GET_LAST_REQUEST_ID() = takes (0) returns (0) {
     [LAST_REQUEST_ID]
     sload
     0x00 mstore
     0x20 0x00 return
 }
 
-#define function GET_RANDOM_NUMBER() = takes (0) returns (0) {
+#define macro GET_RANDOM_NUMBER() = takes (0) returns (0) {
     0x04 calldataload
     sload
     0x00 mstore

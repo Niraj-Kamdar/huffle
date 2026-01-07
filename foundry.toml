@@ -11,3 +11,5 @@ remappings = [
   "forge-std=lib/forge-std/src/",
   "foundry-huff=lib/foundry-huff/src/",
 ]
+# Also, ensure your permissions are set for the huff compiler
+fs_permissions = [{ access = "read-write", path = "./" }]
